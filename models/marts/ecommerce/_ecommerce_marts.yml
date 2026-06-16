@@ -1,0 +1,297 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: >
+      Customer dimension with profile attributes and lifetime order metrics.
+      One row per customer.
+    columns:
+      - name: customer_id
+        description: Primary key for the customer dimension.
+        tests:
+          - not_null
+          - unique
+      - name: customer_full_name
+        description: Display name for the customer.
+      - name: email
+        description: Customer email address.
+      - name: country
+        description: Customer country.
+      - name: city
+        description: Customer city.
+      - name: signup_date
+        description: Date the customer registered.
+      - name: customer_segment
+        description: Customer segment label.
+      - name: first_order_date
+        description: Earliest order date for the customer.
+      - name: last_order_date
+        description: Most recent order date for the customer.
+      - name: total_orders
+        description: Total number of orders placed by the customer.
+      - name: commercial_orders
+        description: Number of commercial orders for the customer.
+      - name: lifetime_gross_amount
+        description: Sum of calculated order totals across all orders.
+      - name: lifetime_net_amount
+        description: Sum of net order amounts across all orders.
+      - name: lifetime_refund_amount
+        description: Sum of refund amounts across all customer orders.
+      - name: is_repeat_customer
+        description: True when the customer has two or more commercial orders.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: dim_products
+    description: >
+      Product dimension with category context.
+      One row per product.
+    columns:
+      - name: product_id
+        description: Primary key for the product dimension.
+        tests:
+          - not_null
+          - unique
+      - name: sku
+        description: Stock keeping unit identifier.
+      - name: product_name
+        description: Display name of the product.
+      - name: category_id
+        description: Foreign key to the product category.
+      - name: category_name
+        description: Name of the product category.
+      - name: unit_price
+        description: Catalog unit price for the product.
+      - name: active_flag
+        description: Whether the product is active in the catalog.
+
+  - name: dim_categories
+    description: >
+      Product category dimension.
+      One row per category.
+    columns:
+      - name: category_id
+        description: Primary key for the category dimension.
+        tests:
+          - not_null
+          - unique
+      - name: category_name
+        description: Display name of the category.
+
+  - name: dim_marketing_channels
+    description: >
+      Marketing channel dimension including an unattributed fallback row
+      for orders with null channel_id.
+      One row per channel.
+    columns:
+      - name: channel_id
+        description: Primary key for the marketing channel dimension.
+        tests:
+          - not_null
+          - unique
+      - name: channel_name
+        description: Display name of the marketing channel.
+
+  - name: dim_dates
+    description: >
+      Calendar date dimension spanning ecommerce activity dates.
+      One row per calendar day.
+    columns:
+      - name: date_day
+        description: Primary key calendar date.
+        tests:
+          - not_null
+          - unique
+      - name: year
+        description: Calendar year number.
+      - name: quarter
+        description: Calendar quarter number.
+      - name: month
+        description: Calendar month number.
+      - name: month_name
+        description: Full month name.
+      - name: week
+        description: ISO week number.
+      - name: day_of_month
+        description: Day of month number.
+      - name: day_of_week
+        description: Day of week number where Sunday is 0.
+      - name: is_weekend
+        description: True when the date falls on Saturday or Sunday.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: fct_orders
+    description: >
+      Order fact table with monetary measures and order status flags.
+      One row per order.
+    columns:
+      - name: order_id
+        description: Primary key for the order fact.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to dim_customers.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: channel_id
+        description: Foreign key to dim_marketing_channels with null mapped to -1.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_channels')
+                field: channel_id
+      - name: order_date
+        description: Timestamp when the order was placed.
+      - name: order_status
+        description: Order lifecycle status.
+      - name: calculated_order_total_amount
+        description: Order total before refunds.
+      - name: net_order_amount
+        description: Order total after refunds.
+      - name: is_cancelled_order
+        description: True when the order is cancelled.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_refunded_order
+        description: True when the order is refunded.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_completed_order
+        description: True when the order is completed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_commercial_order
+        description: True when the order is completed or refunded.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: fct_order_items
+    description: >
+      Order line item fact table with product and order context.
+      One row per order line item.
+    columns:
+      - name: order_item_id
+        description: Primary key for the order item fact.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to fct_orders.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: customer_id
+        description: Foreign key to dim_customers.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: product_id
+        description: Foreign key to dim_products.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: category_id
+        description: Foreign key to dim_categories when category is known.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_categories')
+                field: category_id
+      - name: channel_id
+        description: Foreign key to dim_marketing_channels with null mapped to -1.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_channels')
+                field: channel_id
+      - name: quantity
+        description: Units sold on the line.
+      - name: item_gross_amount
+        description: quantity multiplied by unit_price.
+      - name: is_commercial_order
+        description: Commercial order flag inherited from the parent order.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: mart_channel_performance
+    description: >
+      Channel-level order and revenue performance summary.
+      One row per marketing channel.
+    columns:
+      - name: channel_id
+        description: Primary key for the channel performance mart.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_marketing_channels')
+                field: channel_id
+      - name: channel_name
+        description: Marketing channel display name.
+      - name: total_orders
+        description: Total orders attributed to the channel.
+      - name: commercial_orders
+        description: Commercial orders attributed to the channel.
+      - name: gross_revenue
+        description: Sum of calculated order totals for the channel.
+      - name: net_revenue
+        description: Sum of net order amounts for the channel.
+      - name: average_order_value
+        description: Gross revenue divided by commercial orders.
+
+  - name: mart_product_performance
+    description: >
+      Product-level sales performance summary.
+      One row per product.
+    columns:
+      - name: product_id
+        description: Primary key for the product performance mart.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: total_order_items
+        description: Count of order lines for the product.
+      - name: total_quantity_sold
+        description: Total units sold for the product.
+      - name: gross_item_revenue
+        description: Sum of item_gross_amount across all order lines.
+      - name: commercial_item_revenue
+        description: Sum of item_gross_amount on commercial orders only.
+      - name: order_count
+        description: Distinct orders containing the product.
