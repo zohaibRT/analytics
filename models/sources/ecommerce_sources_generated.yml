@@ -1,0 +1,117 @@
+version: 2
+
+sources:
+  - name: ecommerce
+    tables:
+      - name: categories
+        columns:
+          - name: category_id
+            data_type: bigint
+          - name: category_name
+            data_type: character varying
+
+      - name: customers
+        columns:
+          - name: customer_id
+            data_type: bigint
+          - name: first_name
+            data_type: character varying
+          - name: last_name
+            data_type: character varying
+          - name: email
+            data_type: character varying
+          - name: country
+            data_type: character varying
+          - name: city
+            data_type: character varying
+          - name: signup_date
+            data_type: date
+          - name: customer_segment
+            data_type: character varying
+
+      - name: marketing_channels
+        columns:
+          - name: channel_id
+            data_type: bigint
+          - name: channel_name
+            data_type: character varying
+
+      - name: order_items
+        columns:
+          - name: order_item_id
+            data_type: bigint
+          - name: order_id
+            data_type: bigint
+          - name: product_id
+            data_type: bigint
+          - name: quantity
+            data_type: integer
+          - name: unit_price
+            data_type: numeric
+          - name: line_amount
+            data_type: numeric
+
+      - name: orders
+        columns:
+          - name: order_id
+            data_type: bigint
+          - name: customer_id
+            data_type: bigint
+          - name: order_date
+            data_type: timestamp without time zone
+          - name: order_status
+            data_type: character varying
+          - name: channel_id
+            data_type: bigint
+          - name: gross_amount
+            data_type: numeric
+          - name: discount_amount
+            data_type: numeric
+          - name: tax_amount
+            data_type: numeric
+          - name: shipping_amount
+            data_type: numeric
+
+      - name: payments
+        columns:
+          - name: payment_id
+            data_type: bigint
+          - name: order_id
+            data_type: bigint
+          - name: payment_date
+            data_type: timestamp without time zone
+          - name: payment_method
+            data_type: character varying
+          - name: payment_status
+            data_type: character varying
+          - name: amount
+            data_type: numeric
+
+      - name: products
+        columns:
+          - name: product_id
+            data_type: bigint
+          - name: sku
+            data_type: character varying
+          - name: product_name
+            data_type: character varying
+          - name: category_id
+            data_type: bigint
+          - name: unit_price
+            data_type: numeric
+          - name: active_flag
+            data_type: boolean
+
+      - name: refunds
+        columns:
+          - name: refund_id
+            data_type: bigint
+          - name: order_id
+            data_type: bigint
+          - name: refund_date
+            data_type: timestamp without time zone
+          - name: refund_amount
+            data_type: numeric
+          - name: refund_reason
+            data_type: character varying
+
