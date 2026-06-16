@@ -1,0 +1,218 @@
+version: 2
+
+models:
+  - name: stg_ecommerce__categories
+    description: >
+      Staging view for product categories from the ecommerce source.
+      One row per category.
+    columns:
+      - name: category_id
+        description: Surrogate primary key for the category.
+        tests:
+          - not_null
+          - unique
+      - name: category_name
+        description: Display name of the product category.
+
+  - name: stg_ecommerce__customers
+    description: >
+      Staging view for customer records from the ecommerce source.
+      One row per customer with standardized email and segment fields.
+    columns:
+      - name: customer_id
+        description: Surrogate primary key for the customer.
+        tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: Customer given name from the source system.
+      - name: last_name
+        description: Customer family name from the source system.
+      - name: customer_full_name
+        description: Concatenated first and last name for display and reporting.
+      - name: email
+        description: Lowercased customer email address.
+      - name: country
+        description: Customer country of residence.
+      - name: city
+        description: Customer city of residence.
+      - name: signup_date
+        description: Date the customer registered, cast to date.
+      - name: customer_segment
+        description: Lowercased customer segment label (e.g. retail, vip).
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['retail', 'vip']
+
+  - name: stg_ecommerce__marketing_channels
+    description: >
+      Staging view for marketing acquisition channels from the ecommerce source.
+      One row per channel.
+    columns:
+      - name: channel_id
+        description: Surrogate primary key for the marketing channel.
+        tests:
+          - not_null
+          - unique
+      - name: channel_name
+        description: Display name of the marketing channel.
+
+  - name: stg_ecommerce__order_items
+    description: >
+      Staging view for order line items from the ecommerce source.
+      One row per product line on an order.
+    columns:
+      - name: order_item_id
+        description: Surrogate primary key for the order line item.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to the parent order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__orders')
+                field: order_id
+      - name: product_id
+        description: Foreign key to the product purchased.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__products')
+                field: product_id
+      - name: quantity
+        description: Number of units ordered for this line.
+      - name: unit_price
+        description: Unit price at time of order.
+      - name: line_amount
+        description: Extended line amount before downstream revenue logic.
+
+  - name: stg_ecommerce__orders
+    description: >
+      Staging view for customer orders from the ecommerce source.
+      One row per order with standardized status and explicit timestamp casting.
+    columns:
+      - name: order_id
+        description: Surrogate primary key for the order.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to the customer who placed the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__customers')
+                field: customer_id
+      - name: order_date
+        description: Timestamp when the order was placed.
+      - name: order_status
+        description: Lowercased order lifecycle status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['cancelled', 'completed', 'refunded']
+      - name: channel_id
+        description: Foreign key to the marketing channel attributed to the order.
+        tests:
+          - relationships:
+              to: ref('stg_ecommerce__marketing_channels')
+              field: channel_id
+      - name: gross_amount
+        description: Pre-discount order amount from the source.
+      - name: discount_amount
+        description: Discount applied to the order.
+      - name: tax_amount
+        description: Tax amount on the order.
+      - name: shipping_amount
+        description: Shipping charge on the order.
+
+  - name: stg_ecommerce__payments
+    description: >
+      Staging view for order payments from the ecommerce source.
+      One row per payment transaction.
+    columns:
+      - name: payment_id
+        description: Surrogate primary key for the payment.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to the order being paid.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__orders')
+                field: order_id
+      - name: payment_date
+        description: Timestamp when the payment was recorded.
+      - name: payment_method
+        description: Lowercased payment method label.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['bank transfer', 'credit card', 'debit card', 'paypal', 'wallet']
+      - name: payment_status
+        description: Lowercased payment settlement status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['paid', 'refunded']
+      - name: amount
+        description: Payment amount from the source.
+
+  - name: stg_ecommerce__products
+    description: >
+      Staging view for product catalog records from the ecommerce source.
+      One row per product SKU.
+    columns:
+      - name: product_id
+        description: Surrogate primary key for the product.
+        tests:
+          - not_null
+          - unique
+      - name: sku
+        description: Stock keeping unit identifier.
+      - name: product_name
+        description: Display name of the product.
+      - name: category_id
+        description: Foreign key to the product category.
+        tests:
+          - relationships:
+              to: ref('stg_ecommerce__categories')
+              field: category_id
+      - name: unit_price
+        description: Current catalog unit price.
+      - name: active_flag
+        description: Whether the product is active in the catalog.
+
+  - name: stg_ecommerce__refunds
+    description: >
+      Staging view for order refunds from the ecommerce source.
+      One row per refund transaction.
+    columns:
+      - name: refund_id
+        description: Surrogate primary key for the refund.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to the refunded order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__orders')
+                field: order_id
+      - name: refund_date
+        description: Timestamp when the refund was issued.
+      - name: refund_amount
+        description: Refund amount from the source.
+      - name: refund_reason
+        description: Free-text reason for the refund.
