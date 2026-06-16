@@ -1,0 +1,69 @@
+# dbt generated folders
+
+target/
+logs/
+dbt_packages/
+
+# Python virtual environment
+
+.venv/
+venv/
+env/
+
+# Python cache
+
+**pycache**/
+*.py[cod]
+*.pyo
+
+# Environment and secrets
+
+.env
+.env.*
+profiles.yml
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# IDE/editor files
+
+.vscode/
+.idea/
+
+# Local temporary files
+
+*.log
+*.tmp
+*.bak
+
+# Node modules, if any CLI tools create them
+
+node_modules/
+
+# Optional: local db/database files
+
+*.db
+*.sqlite
+*.sqlite3
+
+# Do not ignore these dbt project files
+
+!dbt_project.yml
+!packages.yml
+!package-lock.yml
+!models/
+!macros/
+!seeds/
+!snapshots/
+!analyses/
+!tests/
+!docs/
+!README.md
+
+# Keep dbt Agent Skills for challenge reproducibility
+
+!.agents/
+!.agents/skills/
+!skills-lock.json
