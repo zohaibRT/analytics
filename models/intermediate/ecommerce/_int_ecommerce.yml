@@ -1,0 +1,217 @@
+version: 2
+
+models:
+  - name: int_ecommerce__payments_aggregated
+    description: >
+      Order-level payment aggregates from staging payments.
+      One row per order that has at least one payment record.
+    columns:
+      - name: order_id
+        description: Primary key; parent order for the aggregated payments.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__orders')
+                field: order_id
+      - name: total_payment_amount
+        description: Sum of all payment amounts for the order.
+      - name: successful_payment_amount
+        description: Sum of payment amounts where payment_status is paid.
+      - name: refunded_payment_amount
+        description: Sum of payment amounts where payment_status is refunded.
+      - name: payment_count
+        description: Number of payment transactions on the order.
+      - name: first_payment_date
+        description: Earliest payment timestamp for the order.
+      - name: last_payment_date
+        description: Latest payment timestamp for the order.
+      - name: payment_methods_used
+        description: Comma-separated distinct payment methods used on the order.
+      - name: has_paid_payment
+        description: True when at least one payment has status paid.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: has_refunded_payment
+        description: True when at least one payment has status refunded.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: int_ecommerce__refunds_aggregated
+    description: >
+      Order-level refund aggregates from staging refunds.
+      One row per order that has at least one refund record.
+    columns:
+      - name: order_id
+        description: Primary key; parent order for the aggregated refunds.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__orders')
+                field: order_id
+      - name: total_refund_amount
+        description: Sum of refund amounts for the order.
+      - name: refund_count
+        description: Number of refund transactions on the order.
+      - name: first_refund_date
+        description: Earliest refund timestamp for the order.
+      - name: last_refund_date
+        description: Latest refund timestamp for the order.
+
+  - name: int_ecommerce__orders_enriched
+    description: >
+      Enriched order records with customer, channel, payment, and refund context
+      plus reusable order amount and status flags. One row per order.
+    columns:
+      - name: order_id
+        description: Primary key for the order.
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: Foreign key to the customer who placed the order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__customers')
+                field: customer_id
+      - name: order_date
+        description: Timestamp when the order was placed.
+      - name: order_status
+        description: Lowercased order lifecycle status from staging.
+      - name: channel_id
+        description: Foreign key to the attributed marketing channel.
+      - name: gross_amount
+        description: Pre-discount gross amount from the source order.
+      - name: discount_amount
+        description: Discount applied to the order.
+      - name: tax_amount
+        description: Tax amount on the order.
+      - name: shipping_amount
+        description: Shipping charge on the order.
+      - name: order_subtotal_amount
+        description: gross_amount minus discount_amount.
+      - name: calculated_order_total_amount
+        description: >
+          Reusable order total before refunds:
+          gross_amount - discount_amount + tax_amount + shipping_amount.
+      - name: net_order_amount
+        description: calculated_order_total_amount minus total_refund_amount.
+      - name: total_refund_amount
+        description: Aggregated refund amount joined from refunds intermediate model.
+      - name: is_cancelled_order
+        description: True when order_status is cancelled.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_refunded_order
+        description: True when order_status is refunded.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_completed_order
+        description: True when order_status is completed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: is_commercial_order
+        description: True when order_status is completed or refunded.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: int_ecommerce__order_items_enriched
+    description: >
+      Enriched order line items with product, category, and order context.
+      One row per order line item. Refunds are not allocated to item grain.
+    columns:
+      - name: order_item_id
+        description: Primary key for the order line item.
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to the parent order.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_ecommerce__orders_enriched')
+                field: order_id
+      - name: product_id
+        description: Foreign key to the product purchased on the line.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__products')
+                field: product_id
+      - name: quantity
+        description: Units ordered on the line.
+      - name: unit_price
+        description: Unit price captured on the order line.
+      - name: line_amount
+        description: Extended line amount from staging.
+      - name: item_gross_amount
+        description: quantity multiplied by unit_price at line grain.
+      - name: order_status
+        description: Parent order status from orders enriched intermediate model.
+      - name: is_commercial_order
+        description: Parent order commercial flag from orders enriched intermediate model.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
+
+  - name: int_ecommerce__customer_order_metrics
+    description: >
+      Customer-level order rollups from enriched orders.
+      One row per customer, including customers with no orders.
+    columns:
+      - name: customer_id
+        description: Primary key for the customer.
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_ecommerce__customers')
+                field: customer_id
+      - name: first_order_date
+        description: Earliest order date for the customer; null when no orders exist.
+      - name: last_order_date
+        description: Latest order date for the customer; null when no orders exist.
+      - name: total_orders
+        description: Count of all orders placed by the customer.
+      - name: commercial_orders
+        description: Count of orders where is_commercial_order is true.
+      - name: completed_orders
+        description: Count of completed orders for the customer.
+      - name: refunded_orders
+        description: Count of refunded orders for the customer.
+      - name: cancelled_orders
+        description: Count of cancelled orders for the customer.
+      - name: lifetime_gross_amount
+        description: Sum of calculated_order_total_amount across all customer orders.
+      - name: lifetime_net_amount
+        description: Sum of net_order_amount across all customer orders.
+      - name: lifetime_refund_amount
+        description: Sum of total_refund_amount across all customer orders.
+      - name: is_repeat_customer
+        description: True when the customer has two or more commercial orders.
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false]
